@@ -49,7 +49,7 @@ const REVOCATION_BASE_GAS: u64 = 50_000;
 const AUTHORIZATION_GAS: u64 = 25_000;
 const SPONSORED_WAKE_LEAD_SECONDS: u64 = 15;
 const STANDARD_WAKE_LEAD_SECONDS: u64 = 10;
-const CALLDATA_HOT_LEAD_MS: u64 = 2_000;
+const CALLDATA_HOT_LEAD_MS: u64 = 3_000;
 
 #[derive(Debug, Error)]
 pub enum MultiMintError {

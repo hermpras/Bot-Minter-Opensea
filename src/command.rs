@@ -50,7 +50,7 @@ use crate::{
 };
 
 const STANDARD_WAKE_LEAD_SECONDS: u64 = 10;
-const CALLDATA_HOT_LEAD_MS: u64 = 2_000;
+const CALLDATA_HOT_LEAD_MS: u64 = 3_000;
 
 #[derive(Debug, Parser)]
 #[command(
@@ -1741,6 +1741,15 @@ async fn execute_mint(mut context: MintExecutionContext<'_>) -> Result<(), Comma
     submit_replacements(&submission_context, &mut prepared, unix_timestamp()?).await
 }
 
+fn hot_calldata_retry_delay(attempt: u32) -> Duration {
+    match attempt {
+        1 => Duration::from_millis(100),
+        2 => Duration::from_millis(100),
+        3 => Duration::from_millis(150),
+        _ => Duration::from_millis(250),
+    }
+}
+
 async fn request_single_wallet_action_hot(
     context: &MintExecutionContext<'_>,
     wallet: alloy_primitives::Address,
@@ -1754,6 +1763,7 @@ async fn request_single_wallet_action_hot(
         {
             return Err(CommandError::StageEnded);
         }
+
         let action = context
             .client
             .mint_transaction_action(
@@ -1774,31 +1784,36 @@ async fn request_single_wallet_action_hot(
                     Ok(action)
                 }
             });
+
         match action {
             Ok(action) => return Ok(action),
+
             Err(error)
                 if should_retry_hot_calldata(&error)
                     && attempt < context.config.opensea.calldata_max_attempts =>
             {
+                let delay = hot_calldata_retry_delay(attempt);
+
                 logging::warn(format!(
                     "OpenSea calldata attempt {attempt}/{} is not ready ({error}); retrying in {} ms.",
                     context.config.opensea.calldata_max_attempts,
-                    context.config.opensea.retry_interval_ms
+                    delay.as_millis()
                 ));
-                sleep(Duration::from_millis(
-                    context.config.opensea.retry_interval_ms,
-                ))
-                .await;
+
+                sleep(delay).await;
             }
+
             Err(error) if should_retry_hot_calldata(&error) => {
                 return Err(CommandError::CalldataRetriesExhausted {
                     attempts: context.config.opensea.calldata_max_attempts,
                     last_error: error.to_string(),
                 });
             }
+
             Err(error) => return Err(error.into()),
         }
     }
+
     unreachable!("bounded calldata retry loop always returns")
 }
 

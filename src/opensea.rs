@@ -1290,30 +1290,48 @@ fn validate_stage_calldata(
     if collection.drop_kind != "Erc721SeaDropV1" {
         return Ok(());
     }
+
     let nft_contract = decode_abi_address(calldata, 0)?;
     let minter_if_not_payer = decode_abi_address(calldata, 2)?;
     let quantity = decode_abi_u64(calldata, 3)?;
+
     if nft_contract != collection.address {
         return Err(reject_unsafe_mint_action("NFT contract mismatch"));
     }
+
     /*
      * SeaDrop uses zero for `minterIfNotPayer` when the transaction sender is the minter.
      */
     if minter_if_not_payer != Address::ZERO && minter_if_not_payer != expected_wallet {
         return Err(reject_unsafe_mint_action("minter mismatch"));
     }
+
     if quantity != expected_quantity {
         return Err(reject_unsafe_mint_action("mint quantity mismatch"));
     }
+
     let expected_selector = match expected_stage_type {
         "PUBLIC_SALE" => [0x16, 0x1a, 0xc2, 0x1f],
         "SIGNED_PRESALE" => [0x4b, 0x61, 0xcd, 0x6f],
         "MERKLE_PRESALE" => [0x43, 0x00, 0xa4, 0xe6],
         _ => return Err(OpenSeaError::Compatibility),
     };
+
     if calldata.get(..4) != Some(expected_selector.as_slice()) {
+        let actual_selector = calldata
+            .get(..4)
+            .map(hex::encode)
+            .unwrap_or_else(|| "missing".to_owned());
+
+        let expected_selector_hex = hex::encode(expected_selector);
+
+        logging::warn(format!(
+            "OpenSea mint selector mismatch: actual=0x{actual_selector}, expected=0x{expected_selector_hex}, stage_type={expected_stage_type}, stage_index={expected_stage_index}"
+        ));
+
         return Err(reject_unsafe_mint_action("mint selector mismatch"));
     }
+
     if expected_stage_type == "PUBLIC_SALE" {
         if expected_stage_index != 0 {
             return Err(OpenSeaError::Compatibility);
@@ -1321,6 +1339,7 @@ fn validate_stage_calldata(
     } else if decode_abi_u64(calldata, 8)? != u64::from(expected_stage_index) {
         return Err(reject_unsafe_mint_action("mint stage index mismatch"));
     }
+
     Ok(())
 }
 
