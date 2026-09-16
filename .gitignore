@@ -3,3 +3,4 @@
 /contracts/out/
 .env
 /wallets.json
+.DS_Store
