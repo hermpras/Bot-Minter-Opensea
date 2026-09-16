@@ -363,3 +363,4 @@ When an uninstalled binary inside the project tree is launched from a parent dir
   <p>The software is provided "as is" without warranties of any kind. To the maximum extent permitted by law, the author and contributors will not be liable for any direct, indirect, incidental, consequential, financial, technical, or other loss, damage, injury, or harm arising from use of, inability to use, or reliance on this software.</p>
   <p>The project is distributed under the <a href="LICENSE">MIT License</a>.</p>
 </div>
+# Bot-Minter-Opensea
